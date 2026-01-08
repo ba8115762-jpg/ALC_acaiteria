@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Sistema Profissional Açaíteria ALC </title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+*{box-sizing:border-box;font-family:Segoe UI,Arial}
+body{margin:0;background:#0f172a;color:#fff}
+header{background:#020617;padding:15px;text-align:center;font-size:22px;font-weight:bold}
+.container{max-width:1100px;margin:auto;padding:20px}
+
+.mode{display:flex;justify-content:center;gap:10px;margin-bottom:20px}
+.mode button{padding:10px 15px;border:none;border-radius:8px;cursor:pointer;font-weight:bold}
+.mode .active{background:#22c55e;color:#000}
+.mode button:not(.active){background:#334155;color:#fff}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px}
+.card{background:#020617;border-radius:16px;padding:15px}
+.card img{width:100%;height:140px;object-fit:cover;border-radius:12px}
+.card h3{text-align:center;margin:8px 0}
+
+.panel{margin-top:30px;background:#020617;border-radius:16px;padding:20px}
+.panel h2{text-align:center;margin-bottom:15px}
+
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:700px){.form-grid{grid-template-columns:1fr}}
+
+input,select,textarea{width:100%;padding:10px;border-radius:8px;border:none}
+
+textarea{min-height:80px;resize:vertical}
+
+.total{text-align:center;font-size:20px;margin-top:15px}
+
+.whats{margin-top:15px;background:#25d366;border:none;padding:14px;border-radius:12px;font-size:18px;font-weight:bold;width:100%;cursor:pointer}
+
+.admin-only{display:none}
+
+.upload{background:#0f172a;padding:10px;border-radius:10px;margin-bottom:10px;border:1px dashed #334155}
+
+.ingredients-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.ing-card{background:#020617;padding:10px;border-radius:12px;text-align:center}
+.ing-card img{width:80px;height:80px;object-fit:cover;border-radius:10px}
+
+.cart{background:#020617;margin-top:20px;padding:15px;border-radius:16px}
+.cart-item{border-bottom:1px solid #334155;padding:8px 0}
+.cart-item:last-child{border:none}
+.cart-item small{color:#cbd5f5}
+
+.remove-btn{
+  background:#ef4444;
+  border:none;
+  color:#fff;
+  padding:4px 8px;
+  border-radius:6px;
+  cursor:pointer;
+  font-size:12px;
+  margin-top:5px;
+}
+
+.pay-box{margin-top:15px}
+.pay-box label{display:block;margin:6px 0}
+</style>
+</head>
+<body>
+
+<header>🍧 Sistema Profissional Açaíteria</header>
+<div class="container">
+
+<div class="mode">
+  <button id="btnCliente" class="active" onclick="setMode('cliente')">👤 Cliente</button>
+  <button id="btnAdmin" onclick="pedirSenha()">🔐 Dono</button>
+</div>
+
+<div class="cards" id="cardsArea"></div>
+
+<div class="panel">
+<h2>🛒 Montar Pedido</h2>
+
+<div class="form-grid">
+  <select id="sabor">
+    <option>Açaí</option>
+    <option>Cupuaçu</option>
+    <option>Nutella</option>
+  </select>
+
+  <select id="tamanho">
+    <option value="200">200 ml</option>
+    <option value="300">300 ml</option>
+    <option value="500">500 ml</option>
+  </select>
+</div>
+
+<h3>Ingredientes (4 grátis)</h3>
+<div class="ingredients-grid" id="ingredientesArea"></div>
+
+<h3>Frutas</h3>
+<div class="ingredients-grid" id="frutasArea"></div>
+
+<button class="whats" onclick="adicionarAoCarrinho()">➕ Adicionar ao carrinho</button>
+</div>
+
+<div class="cart">
+<h2>🧾 Carrinho</h2>
+<div id="cartArea"></div>
+
+<div class="total">Total geral: R$ <span id="totalGeral">0.00</span></div>
+
+<!-- PAGAMENTO -->
+<div class="pay-box">
+<h3>💳 Forma de pagamento</h3>
+<label><input type="radio" name="pagamento" value="Dinheiro" checked> Dinheiro</label>
+<label><input type="radio" name="pagamento" value="Pix"> Pix</label>
+<label><input type="radio" name="pagamento" value="Cartão"> Cartão</label>
+</div>
+
+<!-- MENSAGEM DO CLIENTE -->
+<div class="pay-box">
+<h3>📝 Observação do cliente</h3>
+<textarea id="mensagemCliente" placeholder="Escreva aqui se quiser pedir algo diferente, tirar ingrediente, etc..."></textarea>
+</div>
+
+<button class="whats" onclick="enviarPedido()">📲 Enviar pedido</button>
+</div>
+
+<div class="panel admin-only" id="adminPanel">
+<h2>⚙️ Painel do Dono</h2>
+
+<h3>Imagens dos copos</h3>
+<div class="upload"><input type="text" placeholder="URL Açaí" onblur="salvarCopoURL(this,'Açaí')"></div>
+<div class="upload"><input type="text" placeholder="URL Cupuaçu" onblur="salvarCopoURL(this,'Cupuaçu')"></div>
+<div class="upload"><input type="text" placeholder="URL Nutella" onblur="salvarCopoURL(this,'Nutella')"></div>
+
+<h3>Imagens dos ingredientes</h3>
+<div id="uploadIngredientes"></div>
+
+<h3>Imagens das frutas</h3>
+<div id="uploadFrutas"></div>
+</div>
+
+</div>
+
+<script>
+const SENHA_ADMIN="1234"; 
+const WHATSAPP_NUMERO="5599999999999"; 
+
+let pedidoID = parseInt(localStorage.getItem("pedidoID")) || 1000;
+
+let coposPadrao={
+"Açaí":"https://i.imgur.com/JuQ9p7H.png",
+"Cupuaçu":"https://i.imgur.com/D5m6wqB.png",
+"Nutella":"https://i.imgur.com/7nK2m7C.png"
+};
+
+let ingredientesPadrao=[
+{nome:"Chocobol",img:"https://i.imgur.com/2kRkB0T.png"},
+{nome:"Sucrilhos",img:"https://i.imgur.com/5y5Gk7n.png"},
+{nome:"Leite em pó",img:"https://i.imgur.com/8hX4k1H.png"},
+{nome:"Leite condensado",img:"https://i.imgur.com/FwYF4eL.png"},
+{nome:"M&M",img:"https://i.imgur.com/XpXbG1o.png"},
+{nome:"Paçoca",img:"https://i.imgur.com/0w2cTqz.png"}
+];
+
+let frutasPadrao=[
+{nome:"Manga",img:"https://i.imgur.com/4T7Z6qF.png"},
+{nome:"Banana",img:"https://i.imgur.com/9Qe7LZB.png"},
+{nome:"Morango",img:"https://i.imgur.com/y1ZkFqU.png"}
+];
+
+let copos=JSON.parse(localStorage.getItem("copos"))||coposPadrao;
+let ingredientes=JSON.parse(localStorage.getItem("ingredientes"))||ingredientesPadrao;
+let frutas=JSON.parse(localStorage.getItem("frutas"))||frutasPadrao;
+
+let carrinho=[];
+let modo="cliente";
+
+function setMode(m){
+modo=m;
+document.getElementById("btnCliente").classList.toggle("active",m==="cliente");
+document.getElementById("adminPanel").style.display=m==="admin"?"block":"none";
+}
+
+function pedirSenha(){
+const s=prompt("Senha do dono:");
+if(s===SENHA_ADMIN){setMode("admin");alert("Modo administrador ativado!");}
+else alert("Senha incorreta!");
+}
+
+function render(){
+cardsArea.innerHTML=Object.keys(copos).map(c=>
+`<div class="card"><img src="${copos[c]}"><h3>${c}</h3></div>`
+).join("");
+
+ingredientesArea.innerHTML=ingredientes.map(i=>`
+<div class="ing-card">
+<img src="${i.img}">
+<label><input type="checkbox" value="${i.nome}"> ${i.nome}</label>
+</div>`).join("");
+
+frutasArea.innerHTML=frutas.map(f=>`
+<div class="ing-card">
+<img src="${f.img}">
+<label><input type="checkbox" value="${f.nome}"> ${f.nome}</label>
+</div>`).join("");
+
+uploadIngredientes.innerHTML=ingredientes.map((i,n)=>`
+<div class="upload"><input type="text" placeholder="URL ${i.nome}" onblur="salvarIngredienteURL(this,${n})"></div>`
+).join("");
+
+uploadFrutas.innerHTML=frutas.map((f,n)=>`
+<div class="upload"><input type="text" placeholder="URL ${f.nome}" onblur="salvarFrutaURL(this,${n})"></div>`
+).join("");
+}
+render();
+
+function salvarCopoURL(i,s){if(modo!=="admin"||!i.value)return;copos[s]=i.value;localStorage.setItem("copos",JSON.stringify(copos));render();}
+function salvarIngredienteURL(i,n){if(modo!=="admin"||!i.value)return;ingredientes[n].img=i.value;localStorage.setItem("ingredientes",JSON.stringify(ingredientes));render();}
+function salvarFrutaURL(i,n){if(modo!=="admin"||!i.value)return;frutas[n].img=i.value;localStorage.setItem("frutas",JSON.stringify(frutas));render();}
+
+function calcularPreco(sabor,tam,ings){
+let preco=0;
+if(sabor==="Nutella"){
+if(tam==200)preco=15;if(tam==300)preco=20;if(tam==500)preco=25;
+}else{
+if(tam==200)preco=10;if(tam==300)preco=15;if(tam==500)preco=20;
+}
+let extras=ings.length>4?ings.length-4:0;
+return preco+extras*3;
+}
+
+function adicionarAoCarrinho(){
+const sabor=document.getElementById("sabor").value;
+const tamanho=document.getElementById("tamanho").value;
+
+let selIng=[...document.querySelectorAll('#ingredientesArea input:checked')].map(i=>i.value);
+let selFrutas=[...document.querySelectorAll('#frutasArea input:checked')].map(i=>i.value);
+
+let todos=[...selIng,...selFrutas];
+let total=calcularPreco(sabor,tamanho,todos);
+
+carrinho.push({sabor,tamanho,ingredientes:todos,total});
+renderCarrinho();
+}
+
+function renderCarrinho(){
+let html="";
+let soma=0;
+
+carrinho.forEach((i,idx)=>{
+soma+=i.total;
+html+=`
+<div class="cart-item">
+<b>${i.sabor}</b> ${i.tamanho}ml<br>
+<small>${i.ingredientes.join(", ")||"Sem adicionais"}</small><br>
+R$ ${i.total.toFixed(2)}<br>
+<button class="remove-btn" onclick="removerItem(${idx})">❌ Remover</button>
+</div>`;
+});
+
+cartArea.innerHTML=html||"<i>Carrinho vazio</i>";
+totalGeral.innerText=soma.toFixed(2);
+}
+
+function removerItem(index){
+carrinho.splice(index,1);
+renderCarrinho();
+}
+
+function getPagamento(){
+const sel=document.querySelector('input[name="pagamento"]:checked');
+return sel?sel.value:"Não informado";
+}
+
+function enviarPedido(){
+if(!carrinho.length){alert("Carrinho vazio!");return;}
+
+pedidoID++;
+localStorage.setItem("pedidoID",pedidoID);
+
+let pagamento = getPagamento();
+let obs = document.getElementById("mensagemCliente").value.trim();
+
+let msg=`🆔 *Pedido Nº ${pedidoID}*\n`;
+msg+="🍧 *PEDIDO AÇAÍTERIA*\n\n";
+
+let soma=0;
+
+carrinho.forEach((i,n)=>{
+soma+=i.total;
+msg+=`#${n+1} ${i.sabor} ${i.tamanho}ml\n`;
+msg+=`Itens: ${i.ingredientes.join(", ")||"Nenhum"}\n`;
+msg+=`Valor: R$ ${i.total.toFixed(2)}\n\n`;
+});
+
+msg+=`💳 Pagamento: *${pagamento}*\n`;
+
+if(obs){
+msg+=`📝 Observação do cliente:\n${obs}\n`;
+}
+
+msg+=`💰 TOTAL GERAL: R$ ${soma.toFixed(2)}`;
+
+window.open(
+"https://wa.me/"+WHATSAPP_NUMERO+"?text="+encodeURIComponent(msg),
+"_blank"
+);
+}
+</script>
+
+</body>
+</html>
